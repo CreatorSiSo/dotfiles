@@ -44,7 +44,7 @@ beautiful.init(gears.filesystem.get_configuration_dir () .. "themes/default/them
 
 -- This is used later as the default terminal and editor to run.
 Terminal = "alacritty"
-Editor = os.getenv("EDITOR") or "vi"
+Editor = os.getenv("EDITOR") or "micro"
 EditorCmd = Terminal .. " -e " .. Editor
 
 -- Default modkey.
@@ -58,7 +58,7 @@ awful.layout.layouts = require("config.layouts")
 
 -- {{{ Menu
 -- Create a launcher widget and a main menu
-MyAwesomeMenu = {
+AwesomeMenu = {
  { "hotkeys", function() hotkeys_popup.show_help(nil, awful.screen.focused()) end },
  { "manual", Terminal .. " -e man awesome" },
  { "edit config", EditorCmd .. " " .. awesome.conffile },
@@ -66,27 +66,30 @@ MyAwesomeMenu = {
  { "quit", function() awesome.quit() end },
 }
 
-MyMainMenu = awful.menu({ items = { { "awesome", MyAwesomeMenu, beautiful.awesome_icon },
-									{ "open terminal", Terminal }
-								}
-						})
+local main_menu = awful.menu({
+	items = {
+		{ "awesome", AwesomeMenu, beautiful.awesome_icon },
+		{ "open terminal", Terminal }
+	}
+})
 
-MyLauncher = awful.widget.launcher({ image = beautiful.awesome_icon,
-									 menu = MyMainMenu })
+local main_launcher = awful.widget.launcher({
+	image = beautiful.awesome_icon, menu = main_menu
+})
 
 -- Menubar configuration
 menubar.utils.terminal = Terminal -- Set the terminal for applications that require it
 -- }}}
 
 -- Keyboard map indicator and switcher
-mykeyboardlayout = awful.widget.keyboardlayout()
+KeyboardLayout = awful.widget.keyboardlayout()
 
 -- {{{ Wibar
 -- Create a textclock widget
-mytextclock = wibox.widget.textclock()
+TextClock = wibox.widget.textclock()
 
 -- Create a wibox for each screen and add it
-local taglist_buttons = gears.table.join(
+local workspace_buttons = gears.table.join(
 					awful.button({ }, 1, function(t) t:view_only() end),
 					awful.button({ Modkey }, 1, function(t)
 											if client.focus then
@@ -125,71 +128,71 @@ local tasklist_buttons = gears.table.join(
 											awful.client.focus.byidx(-1)
 										end))
 
-local function set_wallpaper(s)
+local function set_wallpaper(screen)
 	-- Wallpaper
 	if beautiful.wallpaper then
 		local wallpaper = beautiful.wallpaper
 		-- If wallpaper is a function, call it with the screen
 		if type(wallpaper) == "function" then
-			wallpaper = wallpaper(s)
+			wallpaper = wallpaper(screen)
 		end
-		gears.wallpaper.maximized(wallpaper, s, true)
+		gears.wallpaper.maximized(wallpaper, screen, true)
 	end
 end
 
 -- Re-set wallpaper when a screen's geometry changes (e.g. different resolution)
 screen.connect_signal("property::geometry", set_wallpaper)
 
-awful.screen.connect_for_each_screen(function(s)
+awful.screen.connect_for_each_screen(function(screen)
 	-- Wallpaper
-	set_wallpaper(s)
+	set_wallpaper(screen)
 
 	-- Each screen has its own tag table.
-	awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
+	awful.tag({ "web", "dev", "sys" }, screen, awful.layout.layouts[1])
 
 	-- Create a promptbox for each screen
-	s.mypromptbox = awful.widget.prompt()
+	screen.mypromptbox = awful.widget.prompt()
 	-- Create an imagebox widget which will contain an icon indicating which layout we're using.
 	-- We need one layoutbox per screen.
-	s.mylayoutbox = awful.widget.layoutbox(s)
-	s.mylayoutbox:buttons(gears.table.join(
+	screen.layout_switcher = awful.widget.layoutbox(screen)
+	screen.layout_switcher:buttons(gears.table.join(
 						 awful.button({ }, 1, function () awful.layout.inc( 1) end),
 						 awful.button({ }, 3, function () awful.layout.inc(-1) end),
 						 awful.button({ }, 4, function () awful.layout.inc( 1) end),
 						 awful.button({ }, 5, function () awful.layout.inc(-1) end)))
 	-- Create a taglist widget
-	s.mytaglist = awful.widget.taglist {
-		screen  = s,
+	screen.workspace_switcher = awful.widget.taglist {
+		screen  = screen,
 		filter  = awful.widget.taglist.filter.all,
-		buttons = taglist_buttons
+		buttons = workspace_buttons
 	}
 
 	-- Create a tasklist widget
-	s.mytasklist = awful.widget.tasklist {
-		screen  = s,
+	screen.mytasklist = awful.widget.tasklist {
+		screen  = screen,
 		filter  = awful.widget.tasklist.filter.currenttags,
 		buttons = tasklist_buttons
 	}
 
 	-- Create the wibox
-	s.mywibox = awful.wibar({ position = "top", screen = s })
+	screen.mywibox = awful.wibar({ position = "top", screen = screen })
 
 	-- Add widgets to the wibox
-	s.mywibox:setup {
+	screen.mywibox:setup {
 		layout = wibox.layout.align.horizontal,
 		{ -- Left widgets
 			layout = wibox.layout.fixed.horizontal,
-			MyLauncher,
-			s.mytaglist,
-			s.mypromptbox,
+			main_launcher,
+			screen.workspace_switcher,
+			screen.mypromptbox,
 		},
-		s.mytasklist, -- Middle widget
+		screen.mytasklist, -- Middle widget
 		{ -- Right widgets
 			layout = wibox.layout.fixed.horizontal,
-			mykeyboardlayout,
+			KeyboardLayout,
 			wibox.widget.systray(),
-			mytextclock,
-			s.mylayoutbox,
+			TextClock,
+			screen.layout_switcher,
 		},
 	}
 end)
@@ -197,7 +200,7 @@ end)
 
 -- {{{ Mouse bindings
 root.buttons(gears.table.join(
-	awful.button({ }, 3, function () MyMainMenu:toggle() end),
+	awful.button({ }, 3, function () main_menu:toggle() end),
 	awful.button({ }, 4, awful.tag.viewnext),
 	awful.button({ }, 5, awful.tag.viewprev)
 ))
@@ -205,7 +208,7 @@ root.buttons(gears.table.join(
 
 -- {{{ Key bindings
 local global_keys = gears.table.join(
-	awful.key({ Modkey,           }, "s",      hotkeys_popup.show_help,
+	awful.key({ Modkey,           }, "h",      hotkeys_popup.show_help,
 			{description="show help", group="awesome"}),
 	awful.key({ Modkey,           }, "Left",   awful.tag.viewprev,
 			{description = "view previous", group = "tag"}),
@@ -226,7 +229,7 @@ local global_keys = gears.table.join(
 		end,
 		{description = "focus previous by index", group = "client"}
 	),
-	awful.key({ Modkey,           }, "w", function () MyMainMenu:show() end,
+	awful.key({ Modkey,           }, "w", function () main_menu:show() end,
 			{description = "show main menu", group = "awesome"}),
 
 	-- Layout manipulation
@@ -301,7 +304,7 @@ local global_keys = gears.table.join(
 			end,
 			{description = "lua execute prompt", group = "awesome"}),
 	-- Menubar
-	awful.key({ Modkey }, "p", function() menubar.show() end,
+	awful.key({ Modkey }, "s", function() menubar.show() end,
 			{description = "show the menubar", group = "launcher"})
 )
 
@@ -421,52 +424,57 @@ root.keys(global_keys)
 -- Rules to apply to new clients (through the "manage" signal).
 awful.rules.rules = {
 	-- All clients will match this rule.
-	{ rule = { },
-	properties = { border_width = beautiful.border_width,
-					 border_color = beautiful.border_normal,
-					 focus = awful.client.focus.filter,
-					 raise = true,
-					 keys = clientkeys,
-					 buttons = client_buttons,
-					 screen = awful.screen.preferred,
-					 placement = awful.placement.no_overlap+awful.placement.no_offscreen
-	 }
+	{
+		rule = { },
+		properties = {
+			border_width = beautiful.border_width,
+			border_color = beautiful.border_normal,
+			focus = awful.client.focus.filter,
+			raise = true,
+			keys = clientkeys,
+			buttons = client_buttons,
+			screen = awful.screen.preferred,
+			placement = awful.placement.no_overlap+awful.placement.no_offscreen
+		}
 	},
 
 	-- Floating clients.
-	{ rule_any = {
-		instance = {
-		"DTA",  -- Firefox addon DownThemAll.
-		"copyq",  -- Includes session name in class.
-		"pinentry",
-		},
-		class = {
-		"Arandr",
-		"Blueman-manager",
-		"Gpick",
-		"Kruler",
-		"MessageWin",  -- kalarm.
-		"Sxiv",
-		"Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
-		"Wpa_gui",
-		"veromix",
-		"xtightvncviewer"},
+	{
+		rule_any = {
+			instance = {
+				"DTA",  -- Firefox addon DownThemAll.
+				"copyq",  -- Includes session name in class.
+				"pinentry",
+			},
+			class = {
+				"Arandr",
+				"Blueman-manager",
+				"Gpick",
+				"Kruler",
+				"MessageWin",  -- kalarm.
+				"Sxiv",
+				"Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
+				"Wpa_gui",
+				"veromix",
+				"xtightvncviewer"
+			},
 
-		-- Note that the name property shown in xprop might be set slightly after creation of the client
-		-- and the name shown there might not match defined rules here.
-		name = {
-		"Event Tester",  -- xev.
+			-- Note that the name property shown in xprop might be set slightly after creation of the client
+			-- and the name shown there might not match defined rules here.
+			name = { "Event Tester" }, -- xev.
+			role = {
+				"AlarmWindow",  -- Thunderbird's calendar.
+				"ConfigManager",  -- Thunderbird's about:config.
+				"pop-up",       -- e.g. Google Chrome's (detached) Developer Tools.
+			}
 		},
-		role = {
-		"AlarmWindow",  -- Thunderbird's calendar.
-		"ConfigManager",  -- Thunderbird's about:config.
-		"pop-up",       -- e.g. Google Chrome's (detached) Developer Tools.
-		}
-	}, properties = { floating = true }},
+		properties = { floating = true }
+	},
 
 	-- Add titlebars to normal clients and dialogs
-	{ rule_any = {type = { "normal", "dialog" }
-	}, properties = { titlebars_enabled = true }
+	{
+		rule_any = { type = { "normal" --[[ , "dialog" ]] }},
+		properties = { titlebars_enabled = true }
 	},
 
 	-- Set Firefox to always map on the tag named "2" on screen 1.
@@ -542,12 +550,4 @@ end)
 client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
 client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
 
--- Avoid running startup script on restart
--- awesome.connect_signal('exit', function(args)
--- 	awful.util.spawn('')
--- end)
-
--- awesome.connect_signal('startup', function(args)
--- 	awful.util.spawn('bash -c "rm /home/creatorsiso/awesome_restarted || alacritty"')
--- 	awful.util.spawn("touch /home/creatorsiso/awesome_restarted")
--- end)
+awful.util.spawn('picom --experimental-backends --backend glx')

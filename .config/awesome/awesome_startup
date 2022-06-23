@@ -6,7 +6,7 @@ xrandr -s 1920x1080 -r 72 &
 # https://www.reddit.com/r/i3wm/comments/kiy0v0/i3_and_system_default_lightdark_theme_settings/gngcb5r/?utm_source=share&utm_medium=web2x&context=3
 /usr/libexec/gsd-xsettings &
 
-alacritty &
-firefox &
+# alacritty &
+# firefox &
 
 exec awesome

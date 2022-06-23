@@ -16,6 +16,7 @@
 # !.config/gtk-4.0
 !.config/neofetch
 !.config/polybar
+!.config/picom
 
 # WM Configs
 !.config/awesome
@@ -42,5 +43,9 @@ public
 Public
 software
 Software
+pictures
+Pictures
 videos
 Videos
+
+sda
